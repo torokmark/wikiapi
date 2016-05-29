@@ -1,5 +1,7 @@
 package org.wikiapi;
 
+import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -24,26 +26,31 @@ import org.wikiapi.entities.MemberInfo;
 import org.wikiapi.helpers.MemberInfoTransformer;
 import org.wikiapi.helpers.ParameterBuilder;
 
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 
-public class WikiAPIDAOImpl implements WikiAPIDAO {
+public class WikiAPIImpl implements WikiAPI {
 
-    private static final Logger LOGGER = (Logger)LogManager.getLogger();
+    private static final Logger LOGGER = (Logger) LogManager.getLogger();
 
     private Config config;
 
-    public WikiAPIDAOImpl() {
+    public WikiAPIImpl() {
         config = new WikiAPIConfig();
     }
 
-    public WikiAPIDAOImpl(final Config config) {
+    public WikiAPIImpl(final Config config) {
         this.config = config;
     }
 
     @Override
     public Set<MemberInfo> getPagesByCategory(final String categoryName) {
         String json = getRawListByCategoryName(categoryName);
-        Set<MemberInfo> retValue = getSetOfMemberInfos(json);
+        Set<MemberInfo> retValue = new HashSet<>();
+        if (isMemberInfoAvailable(json)) {
+            retValue = getSetOfMemberInfos(json);
+        }
         return retValue;
     }
 
@@ -58,12 +65,7 @@ public class WikiAPIDAOImpl implements WikiAPIDAO {
 
     private String getRawListByCategoryName(final String categoryName) {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
-            String parameter = new ParameterBuilder()
-                    .action(ActionType.QUERY)
-                    .format(FormatType.JSON)
-                    .list(ListType.CATEGORYMEMBERS)
-                    .cmtitle(categoryName)
-                    .build();
+            String parameter = new ParameterBuilder().action(ActionType.QUERY).format(FormatType.JSON).list(ListType.CATEGORYMEMBERS).cmtitle(categoryName).build();
             HttpGet httpget = new HttpGet(config.toString() + "?" + parameter);
 
             ResponseHandler<String> responseHandler = response -> {
@@ -77,15 +79,26 @@ public class WikiAPIDAOImpl implements WikiAPIDAO {
             };
             String responseBody = httpclient.execute(httpget, responseHandler);
             return responseBody;
-        } catch (Exception e) {
+
+        } catch (ClientProtocolException e) {
+            LOGGER.error(e);
+        } catch (UnknownHostException e) {
+            throw new NoConnectionException(String.format("No connection to %s", config.host()));
+        } catch (IOException e) {
             LOGGER.error(e);
         }
         return Strings.EMPTY;
     }
 
+    private boolean isMemberInfoAvailable(final String json) {
+        Configuration conf = Configuration.defaultConfiguration().addOptions(Option.DEFAULT_PATH_LEAF_TO_NULL);
+        Object error = JsonPath.using(conf).parse(json).read("$.error");
+        return error == null;
+    }
+
     private Set<MemberInfo> getSetOfMemberInfos(final String json) {
         Set<MemberInfo> retValue = new HashSet<>();
-        List<LinkedHashMap<String, Object>> members = JsonPath.<List<LinkedHashMap<String, Object>>>read(json, "$.query.categorymembers[*]");
+        List<LinkedHashMap<String, Object>> members = JsonPath.<List<LinkedHashMap<String, Object>>> read(json, "$.query.categorymembers[*]");
         for (LinkedHashMap<String, Object> s : members) {
             retValue.add(MemberInfoTransformer.from(s));
         }

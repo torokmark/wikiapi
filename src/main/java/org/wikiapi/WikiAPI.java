@@ -5,7 +5,7 @@ import java.util.Set;
 
 import org.wikiapi.entities.MemberInfo;
 
-public interface WikiAPIDAO {
+public interface WikiAPI {
 
     Set<MemberInfo> getPagesByCategory(String categoryName);
 

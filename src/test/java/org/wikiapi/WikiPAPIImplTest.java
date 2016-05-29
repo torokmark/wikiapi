@@ -6,18 +6,18 @@ import org.junit.Before;
 import org.junit.Test;
 import org.wikiapi.entities.MemberInfo;
 
-public class WikiPAPIDADOImplTest {
+public class WikiPAPIImplTest {
 
-    private WikiAPIDAOImpl wikiAPIDAOImpl;
+    private WikiAPIImpl wikiAPIDAOImpl;
 
     @Before
     public void setUp() throws Exception {
-        wikiAPIDAOImpl = new WikiAPIDAOImpl();
+        wikiAPIDAOImpl = new WikiAPIImpl();
     }
 
     @Test
     public void test() {
-        Set<MemberInfo> o = wikiAPIDAOImpl.getPagesByCategory("Hungarian_poets");
+        Set<MemberInfo> o = wikiAPIDAOImpl.getPagesByCategory("Hungarian_poets"); // "Hungarian_poets"
 
         System.out.println(o);
     }
